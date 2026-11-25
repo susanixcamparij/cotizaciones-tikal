@@ -1,4 +1,4 @@
-const CACHE = "cotizaciones-v2";
+const CACHE = "cotizaciones-v3";
 const ARCHIVOS = [
   "./",
   "index.html",
