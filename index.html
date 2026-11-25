@@ -91,6 +91,15 @@ button { font: 600 16px/1.2 var(--body); cursor: pointer; border-radius: 8px; }
   background: none; color: var(--accent); border: 1px solid var(--accent);
   min-height: 42px; padding: 0 12px; font-size: 15px; flex: none;
 }
+.foto-fila { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.foto-btn {
+  display: inline-flex; align-items: center; gap: 8px; min-height: 42px; padding: 0 12px;
+  border: 1px solid var(--line); border-radius: 8px; background: var(--surface);
+  color: var(--accent); font-weight: 600; font-size: 15px; cursor: pointer;
+}
+.foto-btn svg { width: 20px; height: 20px; flex: none; }
+.foto-mini { width: 56px; height: 56px; object-fit: cover; border-radius: 6px; border: 1px solid var(--line); flex: none; background: #ffffff; }
+.hojas-fotos { display: flex; flex-direction: column; gap: 12px; }
 .nueva.seguro { background: var(--danger); color: var(--bg); border-color: var(--danger); }
 
 /* Hoja de vista previa: siempre blanca, igual que el PDF */
@@ -116,6 +125,14 @@ button { font: 600 16px/1.2 var(--body); cursor: pointer; border-radius: 8px; }
 .h-tabla tbody tr:nth-child(odd) td { background: var(--paper-zebra); }
 .h-tabla tfoot td { border-block: .13em solid var(--paper-ink); font-weight: 700; }
 .der { text-align: right !important; }
+.h-ftit { font-weight: 700; text-align: center; font-size: 1.2em; }
+.h-fsub { text-align: center; margin-top: .2em; }
+.h-fdatos { display: flex; justify-content: space-between; gap: 1em; margin-top: .9em; }
+.h-nota { font-style: italic; margin-top: .4em; padding-bottom: .5em; border-bottom: .1em solid var(--paper-ink); }
+.h-grid { flex: 1; min-height: 0; display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: repeat(3, minmax(0, 1fr)); gap: 1.2em 4%; margin: 1em 0; }
+.h-cel { display: flex; flex-direction: column; align-items: center; min-height: 0; }
+.h-cel img { flex: 1; min-height: 0; width: 100%; object-fit: contain; }
+.h-cel span { text-align: center; font-size: .9em; margin-top: .3em; }
 .h-obs { margin-top: 3em; white-space: pre-line; }
 .h-gracias { margin-top: auto; text-align: center; font-weight: 600; font-style: italic; }
 
@@ -188,6 +205,7 @@ button { font: 600 16px/1.2 var(--body); cursor: pointer; border-radius: 8px; }
   <section>
     <h2>Así se verá el PDF</h2>
     <div class="hoja-scroll"><div class="hoja-cont"><div class="hoja" id="hoja"></div></div></div>
+    <div class="hojas-fotos" id="hojas-fotos"></div>
   </section>
 </div>
 
@@ -213,6 +231,8 @@ let tienda = "luis";
 let EMPRESA = TIENDAS.luis.lineas;
 let LOGO = TIENDAS.luis.logo;
 const GRACIAS = "¡GRACIAS POR SU PREFERENCIA!";
+const NOTA_FOTOS = "Las imágenes son de referencia del diseño y estilo cotizados. El color debe confirmarse con el vendedor.";
+const ICONO_CAMARA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9a1 1 0 0 1 1-1z"/><circle cx="12" cy="13" r="3.5"/></svg>';
 const OBS_BASE = "Oferta válida por 10 días\nNo es un documento contable";
 const MESES = ["enero","febrero","marzo","abril","mayo","junio","julio","agosto","septiembre","octubre","noviembre","diciembre"];
 
@@ -325,6 +345,34 @@ function crearPdf(c) {
     ls.forEach(l => { y += 5.2; doc.text(l, 18.7, y); });
   }
 
+  // Hojas de imágenes de referencia (6 por hoja), solo si hay fotos
+  const conFoto = filasLlenas(c).filter(i => i.foto);
+  for (let k = 0; k < conFoto.length; k += 6) {
+    doc.addPage();
+    doc.setFont("helvetica", "bold"); doc.setFontSize(13);
+    doc.text("IMÁGENES DE REFERENCIA", 107.95, 24, { align: "center" });
+    fuente("normal");
+    doc.text(EMPRESA[0] + "  |  " + EMPRESA[1], 107.95, 30.5, { align: "center" });
+    doc.text(doc.splitTextToSize("Cliente: " + c.cliente.trim(), 120)[0], IZQ, 39);
+    doc.text("Fecha: " + hoy(), DER, 39, { align: "right" });
+    doc.setFont("helvetica", "italic");
+    const nota = doc.splitTextToSize(NOTA_FOTOS, DER - IZQ);
+    doc.text(nota, IZQ, 45);
+    let arriba = 45 + (nota.length - 1) * 4.6 + 3;
+    doc.setLineWidth(0.3); doc.setDrawColor(0);
+    doc.line(IZQ, arriba, DER, arriba);
+    arriba += 5;
+    const ESP = 7, CW = (DER - IZQ - ESP) / 2, CH = (261 - arriba) / 3, CAP = 9, BOX = CH - CAP - 2;
+    conFoto.slice(k, k + 6).forEach((it, j) => {
+      const x = IZQ + (j % 2) * (CW + ESP), yy = arriba + Math.floor(j / 2) * CH;
+      let w = CW, h = w * it.foto.h / it.foto.w;
+      if (h > BOX) { h = BOX; w = h * it.foto.w / it.foto.h; }
+      doc.addImage(it.foto.url, "JPEG", x + (CW - w) / 2, yy + (BOX - h) / 2, w, h);
+      doc.setFont("helvetica", "normal"); doc.setFontSize(9.5);
+      doc.text(doc.splitTextToSize(it.desc.trim(), CW).slice(0, 2), x + CW / 2, yy + BOX + 4.5, { align: "center" });
+    });
+  }
+
   // Pie de página en todas las hojas
   const paginas = doc.getNumberOfPages();
   for (let p = 1; p <= paginas; p++) {
@@ -350,6 +398,12 @@ function pintarItems() {
       '<div class="field"><label for="um-' + i + '">U. M.</label><select id="um-' + i + '" data-c="um">' + ["UNIDAD", "DOCENA", "FARDO"].map(u => '<option' + (it.um === u ? ' selected' : '') + '>' + u + '</option>').join("") + '</select></div>' +
       '<div class="field"><label for="precio-' + i + '">Precio Q</label><input id="precio-' + i + '" class="num" inputmode="decimal" autocomplete="off" data-c="precio" value="' + esc(it.precio) + '"></div>' +
       '</div>' +
+      '<div class="foto-fila">' +
+      (it.foto ? '<img class="foto-mini" src="' + it.foto.url + '" alt="Foto de referencia">' : '') +
+      '<label class="foto-btn" for="foto-' + i + '">' + ICONO_CAMARA + (it.foto ? 'Cambiar foto' : 'Agregar foto de referencia') + '</label>' +
+      '<input type="file" accept="image/*" id="foto-' + i + '" hidden>' +
+      (it.foto ? '<button type="button" class="quitar" data-quitarfoto="' + i + '">Quitar foto</button>' : '') +
+      '</div>' +
       '<div class="sub"><button type="button" class="quitar" data-quitar="' + i + '">Quitar</button>' +
       '<span class="sub-val" id="sub-' + i + '"></span></div>';
     d.addEventListener("input", e => {
@@ -358,11 +412,61 @@ function pintarItems() {
       it[campo] = e.target.value;
       cambio();
     });
+    d.addEventListener("change", async e => {
+      if (e.target.type !== "file" || !e.target.files[0]) return;
+      try {
+        it.foto = await reducirFoto(e.target.files[0]);
+        pintarItems(); cambio();
+      } catch (err) {
+        avisar("No se pudo usar esa imagen. Prueba con otra foto.", "error");
+      }
+    });
     cont.appendChild(d);
   });
 }
 
+// Reduce la foto para que el PDF no pese mucho (lado mayor de 1200 px, JPEG)
+function reducirFoto(archivo) {
+  return new Promise((ok, mal) => {
+    const url = URL.createObjectURL(archivo);
+    const img = new Image();
+    img.onload = () => {
+      const s = Math.min(1, 1200 / Math.max(img.naturalWidth, img.naturalHeight));
+      const w = Math.max(1, Math.round(img.naturalWidth * s)), h = Math.max(1, Math.round(img.naturalHeight * s));
+      const cv = document.createElement("canvas");
+      cv.width = w; cv.height = h;
+      const cx = cv.getContext("2d");
+      cx.fillStyle = "#ffffff"; cx.fillRect(0, 0, w, h);
+      cx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(url);
+      ok({ url: cv.toDataURL("image/jpeg", 0.82), w, h });
+    };
+    img.onerror = () => { URL.revokeObjectURL(url); mal(new Error("imagen")); };
+    img.src = url;
+  });
+}
+
+let firmaFotos = "";
+function pintarFotos() {
+  const fotos = filasLlenas(q).filter(i => i.foto);
+  const firma = JSON.stringify([tienda, q.cliente, hoy(), fotos.map(i => [i.desc, i.foto.url.length, i.foto.url.slice(-24)])]);
+  if (firma === firmaFotos) return;
+  firmaFotos = firma;
+  let html = "";
+  for (let k = 0; k < fotos.length; k += 6) {
+    html += '<div class="hoja-scroll"><div class="hoja-cont"><div class="hoja">' +
+      '<div class="h-ftit">IMÁGENES DE REFERENCIA</div>' +
+      '<div class="h-fsub">' + esc(EMPRESA[0] + "  |  " + EMPRESA[1]) + '</div>' +
+      '<div class="h-fdatos"><span>Cliente: ' + esc(q.cliente) + '</span><span>Fecha: ' + hoy() + '</span></div>' +
+      '<div class="h-nota">' + NOTA_FOTOS + '</div>' +
+      '<div class="h-grid">' + fotos.slice(k, k + 6).map(i => '<div class="h-cel"><img src="' + i.foto.url + '" alt=""><span>' + esc(i.desc) + '</span></div>').join("") + '</div>' +
+      '<div class="h-gracias">' + GRACIAS + '</div></div></div></div>';
+  }
+  $("hojas-fotos").innerHTML = html;
+}
+
 function pintarHoja() {
+  pintarFotos();
   const filas = filasLlenas(q).map(i =>
     '<tr><td class="der">' + esc(cantTxt(i.cant)) + '</td><td>' + esc(i.um) + '</td><td>' + esc(i.desc) + '</td>' +
     '<td class="der">Q ' + dinero(num(i.precio)) + '</td><td class="der">Q ' + dinero(num(i.cant) * num(i.precio)) + '</td></tr>').join("");
@@ -418,6 +522,8 @@ $("agregar").addEventListener("click", () => {
 });
 
 $("items").addEventListener("click", e => {
+  const f = e.target.dataset.quitarfoto;
+  if (f !== undefined) { delete q.items[Number(f)].foto; pintarItems(); cambio(); return; }
   const i = e.target.dataset.quitar;
   if (i === undefined) return;
   q.items.splice(Number(i), 1);
